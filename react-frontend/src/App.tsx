@@ -1,10 +1,4 @@
-import React, {
-  useEffect,
-  useState,
-  useRef,
-  useImperativeHandle,
-  useReducer,
-} from "react";
+import React, { useState, useRef, useReducer } from "react";
 import { useEffectOnce } from "usehooks-ts";
 import "./App.css";
 import Controls from "./components/controls";
@@ -17,8 +11,6 @@ import {
   AUDIO_TRACK_CONSTRAINTS,
   VIDEO_TRACK_CONSTRAINTS,
 } from "./room/consts";
-
-var webrtc;
 
 export const App: React.FC<{}> = (props) => {
   const [username, _setUsername] = useState(
@@ -118,18 +110,31 @@ function useWebRTC() {
 }
 
 function useParticipants() {
-  const reducer = (
-    state: { [key: string]: Stream },
-    action: { type: string; participant: string; data?: object }
-  ): { [key: string]: Stream } => {
+  type State = {
+    [key: string]: Stream;
+  };
+
+  enum ActionType {
+    Set,
+    Update,
+    Remove,
+  }
+
+  type Action = {
+    type: ActionType;
+    participant: string;
+    data?: Partial<Stream>;
+  };
+
+  const reducer = (state: State, action: Action): State => {
     switch (action.type) {
-      case "set":
+      case ActionType.Set:
         const stream = action.data as Stream;
         return { ...state, [action.participant]: stream };
-      case "remove":
+      case ActionType.Remove:
         delete state[action.participant];
         return state;
-      case "update":
+      case ActionType.Update:
         return {
           ...state,
           [action.participant]: {
@@ -148,11 +153,11 @@ function useParticipants() {
   return {
     participants,
     setParticipant: (participant: string, data: Stream) =>
-      dispatch({ type: "set", participant, data }),
+      dispatch({ type: ActionType.Set, participant, data }),
     removeParticipant: (participant: string) =>
-      dispatch({ type: "remove", participant }),
+      dispatch({ type: ActionType.Remove, participant }),
     updateParticipant: (participant: string, data: Partial<Stream>) =>
-      dispatch({ type: "update", participant, data }),
+      dispatch({ type: ActionType.Update, participant, data }),
   };
 }
 
