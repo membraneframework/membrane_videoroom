@@ -1,13 +1,18 @@
-import React, { useEffect, useState, useRef, useImperativeHandle } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useImperativeHandle,
+  useReducer,
+} from "react";
 import { useEffectOnce } from "usehooks-ts";
 import "./App.css";
 import Controls from "./components/controls";
 import { StreamsDisplay } from "./components/streams";
-import { StreamDisplay } from "./components/stream";
 import Stream from "./types/stream";
 
 import { Socket, Channel } from "phoenix";
-import { MembraneWebRTC, Peer } from "@membraneframework/membrane-webrtc-js";
+import { MembraneWebRTC } from "@membraneframework/membrane-webrtc-js";
 import {
   AUDIO_TRACK_CONSTRAINTS,
   VIDEO_TRACK_CONSTRAINTS,
@@ -28,7 +33,7 @@ export const App: React.FC<{}> = (props) => {
 
   return (
     <>
-      <StreamsDisplay streams={Object.values(participants.current)} />
+      <StreamsDisplay streams={Object.values(participants)} />
     </>
   );
 };
@@ -46,8 +51,6 @@ function useWebRTC() {
       callbacks: {
         onSendMediaEvent: (event) =>
           channel.current.push("mediaEvent", { data: event }),
-        onConnectionError: (error) =>
-          console.error("Failed to join room", error),
         onJoinSuccess: async (_peerId, _peersInRoom) => {
           console.log("Joined");
 
@@ -66,9 +69,21 @@ function useWebRTC() {
             videoStream: localVideoStream,
           });
         },
-        onJoinError: (error) => console.error("Failed to join room", error),
-        onTrackReady: (ctx) => console.log("New track", ctx),
-        onPeerJoined: (peer) => console.log("Peer joined", peer),
+        onTrackReady: (ctx) => {
+          console.log("New track", ctx);
+
+          const data: Partial<Stream> = {
+            ownerName: ctx.peer.metadata.displayName,
+          };
+
+          if (ctx.track!.kind === "video") {
+            data.videoStream = ctx.stream!;
+          } else {
+            data.audioStream = ctx.stream!;
+          }
+
+          updateParticipant(ctx.peer.id, data);
+        },
       },
     });
   });
@@ -84,8 +99,6 @@ function useWebRTC() {
       channel.current.join();
 
       channel.current.on("mediaEvent", (event: any) => {
-        console.log("Received media event", event);
-
         webrtc.current?.receiveMediaEvent(event.data);
       });
 
@@ -105,47 +118,48 @@ function useWebRTC() {
 }
 
 function useParticipants() {
-  const ref = useRef<{ [key: string]: Stream }>({});
-
-  const setParticipant = (participant: string, data: Stream): void => {
-    ref.current[participant] = data;
+  const reducer = (
+    state: { [key: string]: Stream },
+    action: { type: string; participant: string; data?: object }
+  ): { [key: string]: Stream } => {
+    switch (action.type) {
+      case "set":
+        const stream = action.data as Stream;
+        return { ...state, [action.participant]: stream };
+      case "remove":
+        delete state[action.participant];
+        return state;
+      case "update":
+        return {
+          ...state,
+          [action.participant]: {
+            ...state[action.participant],
+            ...action.data,
+          },
+        };
+      default:
+        throw new TypeError("Unhandled action type");
+    }
   };
 
-  const removeParticipant = (participant: string) =>
-    delete ref.current[participant];
-
-  const updateParticipant = (
-    participant: string,
-    transformation: (participant: Stream) => void
-  ): void => {
-    transformation(ref.current[participant]);
-  };
+  const initialState: { [key: string]: Stream } = {};
+  const [participants, dispatch] = useReducer(reducer, initialState, (a) => a);
 
   return {
-    participants: ref,
-    setParticipant,
-    removeParticipant,
-    updateParticipant,
+    participants,
+    setParticipant: (participant: string, data: Stream) =>
+      dispatch({ type: "set", participant, data }),
+    removeParticipant: (participant: string) =>
+      dispatch({ type: "remove", participant }),
+    updateParticipant: (participant: string, data: Partial<Stream>) =>
+      dispatch({ type: "update", participant, data }),
   };
-}
-
-function useDevices() {
-  const [localVideoStream, setLocalVideoStream] = useState<
-    MediaStream | undefined
-  >(undefined);
-  const [localAudioStream, setLocalAudioStream] = useState<
-    MediaStream | undefined
-  >(undefined);
-
-  const resolve = async () => {};
-
-  return { localAudioStream, localVideoStream };
 }
 
 async function getDevices() {
   var localAudioStream, localVideoStream;
 
- const hasVideoInput: boolean = (
+  const hasVideoInput: boolean = (
     await navigator.mediaDevices.enumerateDevices()
   ).some((device) => device.kind === "videoinput");
 
