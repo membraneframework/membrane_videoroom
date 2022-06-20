@@ -1,10 +1,10 @@
-import React, { useState, useRef, useReducer } from "react";
+import React, { useState, useRef, useReducer, useEffect } from "react";
 import { useEffectOnce } from "usehooks-ts";
 import "./App.css";
 import Controls from "./components/controls";
 import { StreamsDisplay } from "./components/streams";
+import { LOCAL_STREAMS, useLocalDevices } from "./hooks/useLocalDevices";
 import useWebRTC from "./hooks/useWebRTC";
-import Stream from "./types/stream";
 
 export const App: React.FC<{}> = (props) => {
   const [username, _setUsername] = useState(
@@ -12,16 +12,16 @@ export const App: React.FC<{}> = (props) => {
   );
 
   const { join, leave, participants } = useWebRTC();
+  const { setAudioEnabled, setVideoEnabled, initialized } = useLocalDevices();
 
-  useEffectOnce(() => {
-    join("test");
-  });
+  const joined = useRef(false);
 
-  // return (
-  //   <>
-  //     <StreamsDisplay streams={Object.values(participants)} />
-  //   </>
-  // );
+  useEffect(() => {
+    if (!joined.current && initialized) {
+      join(username);
+      joined.current = true;
+    }
+  }, [initialized]);
 
   return (
     <div className="app">
@@ -33,12 +33,12 @@ export const App: React.FC<{}> = (props) => {
       </div>
       <div className="controls">
         <Controls
-          onCameraStateChanged={(state) =>
-            console.log("Camera state changed", state)
-          }
-          onMuteStateChanged={(state) =>
-            console.log("Mic state changed", state)
-          }
+          onCameraStateChanged={(state) => {
+            setVideoEnabled(state);
+          }}
+          onMuteStateChanged={(state) => {
+            setAudioEnabled(state);
+          }}
           onLeave={() => console.log("Leaving room")}
         />{" "}
       </div>
