@@ -8,8 +8,14 @@ import Stream from "../types/stream";
 import { LOCAL_STREAMS, useLocalDevices } from "./useLocalDevices";
 
 function useWebRTC() {
-  const { participants, setParticipant, removeParticipant, updateParticipant } =
-    useParticipants();
+  const {
+    participants,
+    setParticipant,
+    removeParticipant,
+    updateParticipant,
+    removeAudio,
+    removeVideo,
+  } = useParticipants();
 
   const webrtc = useRef<MembraneWebRTC | undefined>(
     new MembraneWebRTC({
@@ -42,6 +48,19 @@ function useWebRTC() {
           }
 
           updateParticipant(ctx.peer.id, data);
+        },
+        onTrackRemoved: (ctx) => {
+          console.log("onTrackRemoved", ctx);
+
+          if (ctx.track!.kind === "video") {
+            removeVideo(ctx.peer.id);
+          } else if (ctx.track!.kind === "audio") {
+            removeAudio(ctx.peer.id);
+          }
+        },
+        onPeerLeft: (peer) => {
+          console.log("onPeerLeft", peer);
+          removeParticipant(peer.id);
         },
       },
     })
