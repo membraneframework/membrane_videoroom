@@ -4,9 +4,9 @@ defmodule VideoRoom.Application do
 
   require Membrane.Logger
 
-  alias Membrane.TelemetryMetrics.Reporter
-
   @cert_file_path "priv/integrated_turn_cert.pem"
+
+  alias Membrane.RTC.Engine.TimescaleDB
 
   @impl true
   def start(_type, _args) do
@@ -14,7 +14,10 @@ defmodule VideoRoom.Application do
     create_integrated_turn_cert_file()
 
     children = [
-      {Reporter, [metrics: Membrane.RTC.Engine.Metrics.metrics(), name: VideoRoomReporter]},
+      {TimescaleDB.Reporter, [name: TimescaleDB.Reporter]},
+      {Membrane.VideoRoom.MetricsPersistor, reporter: TimescaleDB.Reporter},
+      {Membrane.TelemetryMetrics.Reporter,
+       [metrics: Membrane.RTC.Engine.Metrics.metrics(), name: VideoRoomReporter]},
       VideoRoomWeb.Endpoint,
       {Phoenix.PubSub, name: VideoRoom.PubSub},
       {Registry, keys: :unique, name: Videoroom.Room.Registry}
