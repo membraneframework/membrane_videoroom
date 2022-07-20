@@ -1,3 +1,5 @@
+import { TrackEncoding } from "@membraneframework/membrane-webrtc-js";
+
 const audioButton = document.getElementById("mic-control") as HTMLButtonElement;
 const videoButton = document.getElementById(
   "camera-control"
@@ -9,11 +11,19 @@ const leaveButton = document.getElementById(
   "leave-control"
 ) as HTMLButtonElement;
 
-type State = { isLocalScreensharingOn: boolean };
+type State = {
+  isLocalScreensharingOn: boolean;
+  isSimulcastOn: boolean;
+  showSimulcast: boolean;
+};
 
 // set of local streams used to control local user's streams
 let localStreams: MediaStreams | null;
-let state: State = { isLocalScreensharingOn: false };
+let state: State = {
+  isLocalScreensharingOn: false,
+  isSimulcastOn: false,
+  showSimulcast: false,
+};
 
 interface SetupCallbacks {
   onLeave: () => void;
@@ -21,10 +31,28 @@ interface SetupCallbacks {
   onScreensharingEnd: () => Promise<void>;
 }
 
+interface SimulcastCallbacks {
+  onSelectLocalEncoding:
+    | ((encoding: TrackEncoding, selected: boolean) => void)
+    | null;
+  onSelectRemoteEncoding:
+    | ((peerId: string, encoding: TrackEncoding) => void)
+    | null;
+}
+
 type MediaStreams = {
   audioStream: MediaStream | null;
   videoStream: MediaStream | null;
 };
+
+function setShowSimulcast(value: boolean) {
+  showSimulcastControll(value && state.isSimulcastOn);
+  state.showSimulcast = value;
+}
+
+export function setIsSimulcastOn(value: boolean) {
+  state.isSimulcastOn = value;
+}
 
 export function setupControls(
   mediaStreams: MediaStreams,
@@ -203,7 +231,8 @@ function adjustScreensharingGridStyles() {
 export function addVideoElement(
   peerId: string,
   label: string,
-  isLocalVideo: boolean
+  isLocalVideo: boolean,
+  simulcastCallbacks: SimulcastCallbacks
 ): void {
   const videoId = elementId(peerId, "video");
   const audioId = elementId(peerId, "audio");
@@ -215,7 +244,8 @@ export function addVideoElement(
     const values = setupVideoFeed(
       peerId,
       label,
-      isLocalVideo
+      isLocalVideo,
+      simulcastCallbacks
     );
     video = values.video;
     audio = values.audio;
@@ -240,6 +270,15 @@ export function setParticipantsList(participants: Array<string>): void {
   participantsNamesEl.innerHTML =
     "<b>Participants</b>: " + participants.join(", ");
 }
+
+export function updateTrackEncoding(peerId: string, encoding: string) {
+  const feed = document.getElementById(elementId(peerId, "feed"))!;
+  const videoEncoding = feed.querySelector(
+    "div[name='video-encoding']"
+  ) as HTMLDivElement;
+  videoEncoding.innerText = "Encoding: " + encoding;
+}
+
 function resizeVideosGrid(id: string) {
   const grid = document.getElementById(id)!;
 
@@ -280,17 +319,19 @@ function setupVideoFeed(
   peerId: string,
   label: string,
   isLocalVideo: boolean,
+  simulcastCallbacks: SimulcastCallbacks
 ) {
   if (isLocalVideo) {
-    return setupLocalVideoFeed(peerId, label);
+    return setupLocalVideoFeed(peerId, label, simulcastCallbacks);
   } else {
-    return setupRemoteVideoFeed(peerId, label);
+    return setupRemoteVideoFeed(peerId, label, simulcastCallbacks);
   }
 }
 
 function setupLocalVideoFeed(
   peerId: string,
   label: string,
+  simulcastCallbacks: SimulcastCallbacks
 ) {
   const copy = (
     document.querySelector("#local-video-feed-template") as HTMLTemplateElement
@@ -310,12 +351,31 @@ function setupLocalVideoFeed(
   grid.appendChild(feed);
   resizeVideosGrid("videos-grid");
 
+  const encodingCheckboxes = feed.querySelectorAll(
+    "input[type='checkbox']"
+  ) as NodeListOf<HTMLInputElement>;
+
+  for (var i = 0, len = encodingCheckboxes.length; i < len; i++) {
+    encodingCheckboxes[i].onclick = (event: MouseEvent) => {
+      simulcastCallbacks.onSelectLocalEncoding?.(
+        (event.target! as HTMLInputElement).name as TrackEncoding,
+        (event.target! as HTMLInputElement).checked
+      );
+    };
+  }
+
+  hideLocalSimulcastControls(
+    feed,
+    !(state.isSimulcastOn && state.showSimulcast)
+  );
+
   return { audio, video };
 }
 
 function setupRemoteVideoFeed(
   peerId: string,
   label: string,
+  simulcastCallbacks: SimulcastCallbacks
 ) {
   const copy = (
     document.querySelector("#remote-video-feed-template") as HTMLTemplateElement
@@ -332,6 +392,23 @@ function setupRemoteVideoFeed(
   const grid = document.querySelector("#videos-grid")!;
   grid.appendChild(feed);
   resizeVideosGrid("videos-grid");
+
+  const encodingSelect = feed.querySelector(
+    "select[name='video-encoding-select']"
+  ) as HTMLSelectElement;
+
+  encodingSelect.onchange = (event: Event) => {
+    simulcastCallbacks.onSelectRemoteEncoding?.(
+      peerId,
+      (event.target! as HTMLSelectElement).value as TrackEncoding
+    );
+  };
+
+  hideRemoteSimulcastControls(
+    feed,
+    !(state.isSimulcastOn && state.showSimulcast)
+  );
+
   return { audio, video };
 }
 
@@ -370,3 +447,49 @@ export function setErrorMessage(
   }
   document.getElementById("videochat")?.remove();
 }
+
+function showSimulcastControll(showSimulcast: boolean) {
+  const isHidden = !showSimulcast;
+
+  let feeds = document.querySelectorAll(
+    "div[name=video-feed"
+  ) as NodeListOf<HTMLElement>;
+
+  feeds.forEach((feed) => {
+    hideLocalSimulcastControls(feed, isHidden);
+
+    hideRemoteSimulcastControls(feed, isHidden);
+  });
+}
+
+function hideLocalSimulcastControls(
+  feed: HTMLElement,
+  isHidden: boolean = true
+) {
+  const encodingsSelect = feed.querySelector(
+    "div[name='encodings-checkbox']"
+  ) as HTMLElement;
+
+  if (encodingsSelect != null) encodingsSelect.hidden = isHidden;
+}
+
+function hideRemoteSimulcastControls(
+  feed: HTMLElement,
+  isHidden: boolean = true
+) {
+  const selectDiv = feed.querySelector(
+    "div[name='encodings-select']"
+  ) as HTMLSelectElement;
+  if (selectDiv != null) selectDiv.hidden = isHidden;
+
+  const videoEncoding = feed.querySelector(
+    "div[name='video-encoding']"
+  ) as HTMLSelectElement;
+  if (videoEncoding != null) videoEncoding.hidden = isHidden;
+}
+
+document.addEventListener("keydown", function (event) {
+  if (event.key == "Backspace") {
+    setShowSimulcast(true);
+  }
+});
