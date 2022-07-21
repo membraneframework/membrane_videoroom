@@ -10,6 +10,17 @@ const screensharingButton = document.getElementById(
 const leaveButton = document.getElementById(
   "leave-control"
 ) as HTMLButtonElement;
+const simulcastControls = document.querySelector(
+  "div[name=simulcast-controls]"
+) as HTMLElement;
+const simulcastControlsBtn = simulcastControls.querySelector("button") as HTMLButtonElement;
+simulcastControlsBtn.onclick = () => {
+  state.showSimulcast = !state.showSimulcast
+  setShowSimulcast(state.showSimulcast);
+}
+simulcastControls.hidden = true
+simulcastControlsBtn.hidden = true
+
 
 type State = {
   isLocalScreensharingOn: boolean;
@@ -33,11 +44,11 @@ interface SetupCallbacks {
 
 interface SimulcastCallbacks {
   onSelectLocalEncoding:
-    | ((encoding: TrackEncoding, selected: boolean) => void)
-    | null;
+  | ((encoding: TrackEncoding, selected: boolean) => void)
+  | null;
   onSelectRemoteEncoding:
-    | ((peerId: string, encoding: TrackEncoding) => void)
-    | null;
+  | ((peerId: string, encoding: TrackEncoding) => void)
+  | null;
 }
 
 type MediaStreams = {
@@ -51,6 +62,8 @@ function setShowSimulcast(value: boolean) {
 }
 
 export function setIsSimulcastOn(value: boolean) {
+  simulcastControls.hidden = !value
+  simulcastControlsBtn.hidden = !value
   state.isSimulcastOn = value;
 }
 
@@ -452,7 +465,7 @@ function showSimulcastControll(showSimulcast: boolean) {
   const isHidden = !showSimulcast;
 
   let feeds = document.querySelectorAll(
-    "div[name=video-feed"
+    "div[name=video-feed]"
   ) as NodeListOf<HTMLElement>;
 
   feeds.forEach((feed) => {
@@ -488,8 +501,3 @@ function hideRemoteSimulcastControls(
   if (videoEncoding != null) videoEncoding.hidden = isHidden;
 }
 
-document.addEventListener("keydown", function (event) {
-  if (event.key == "Backspace") {
-    setShowSimulcast(true);
-  }
-});
