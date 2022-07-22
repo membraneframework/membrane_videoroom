@@ -58,4 +58,11 @@ defmodule VideoRoomWeb.PeerChannel do
 
     {:noreply, socket}
   end
+
+  @impl true
+  def handle_info({:simulcast_config, simulcast_config}, socket) do
+    push(socket, "simulcastConfig", %{data: simulcast_config})
+
+    {:noreply, socket}
+  end
 end
