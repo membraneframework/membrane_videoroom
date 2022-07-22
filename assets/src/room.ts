@@ -126,7 +126,7 @@ export class Room {
           }
           this.tracks.get(ctx.peer.id)?.push(ctx);
         },
-        onTrackAdded: (_ctx) => {},
+        onTrackAdded: (_ctx) => { },
         onTrackRemoved: (ctx) => {
           if (ctx.metadata.type === "screensharing") {
             detachScreensharing(ctx.peer.id);
@@ -151,7 +151,7 @@ export class Room {
           removeVideoElement(peer.id);
           this.updateParticipantsList();
         },
-        onPeerUpdated: (_ctx) => {},
+        onPeerUpdated: (_ctx) => { },
         onTrackEncodingChanged: (
           peerId: string,
           _trackId: string,
@@ -166,8 +166,11 @@ export class Room {
       this.webrtc.receiveMediaEvent(event.data)
     );
     this.webrtcChannel.on("simulcastConfig", (event) => {
-      this.isSimulcastOn = event.data;
-      setIsSimulcastOn(event.data);
+      const queryString = window.location.search;
+      const urlParams = new URLSearchParams(queryString);
+      const simulcastStatusParams = urlParams.get("simulcast") == "true"
+      this.isSimulcastOn = event.data && simulcastStatusParams;
+      setIsSimulcastOn(this.isSimulcastOn);
     });
   }
 
@@ -291,6 +294,7 @@ export class Room {
   };
 
   private leave = () => {
+    window.history.replaceState(null, "", window.location.pathname);
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
     this.wakeLock && this.wakeLock.release();
     this.wakeLock = null;
@@ -334,7 +338,7 @@ export class Room {
     const { display_name: displayName } = parse(document.location.search);
 
     // remove query params without reloading the page
-    window.history.replaceState(null, "", window.location.pathname);
+    // window.history.replaceState(null, "", window.location.pathname);
 
     return displayName as string;
   };
