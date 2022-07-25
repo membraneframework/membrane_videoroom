@@ -78,7 +78,8 @@ export class Room {
               track,
               this.localVideoStream!,
               {},
-              { enabled: false }
+              { enabled: false },
+              1200
             );
           });
 
