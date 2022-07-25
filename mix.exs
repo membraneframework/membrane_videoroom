@@ -21,7 +21,7 @@ defmodule VideoRoom.MixProject do
 
   defp deps do
     [
-      {:membrane_rtc_engine, github: "membraneframework/membrane_rtc_engine"},
+      {:membrane_rtc_engine, github: "membraneframework/membrane_rtc_engine", ref: "81eba82"},
       {:membrane_ice_plugin, github: "membraneframework/membrane_ice_plugin", branch: "enforce-ice-tcp", override: true},
       {:plug_cowboy, "~> 2.5.2"},
       {:phoenix, "~> 1.6"},
