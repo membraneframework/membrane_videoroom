@@ -22,6 +22,8 @@ defmodule VideoRoom.MixProject do
   defp deps do
     [
       {:membrane_rtc_engine, github: "membraneframework/membrane_rtc_engine"},
+      {:membrane_rtp_plugin, github: "membraneframework/membrane_rtp_plugin", branch: "experiment/nack-passing", override: true},
+      {:ex_libsrtp, github: "membraneframework/ex_libsrtp", branch: "dont-raise-on-replay-too-old", override: true},
       {:plug_cowboy, "~> 2.5.2"},
       {:phoenix, "~> 1.6"},
       {:phoenix_html, "~> 3.0"},
