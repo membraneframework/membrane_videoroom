@@ -26,6 +26,53 @@ type MediaStreams = {
   videoStream: MediaStream | null;
 };
 
+export function addAudioStatusChangedCallback(
+  callback: (status: boolean) => any
+) {
+  audioButton.addEventListener("click", () =>
+    callback(!getAudioButtonStatus())
+  );
+}
+
+export function addVideoStatusChangedCallback(
+  callback: (status: boolean) => any
+) {
+  videoButton.addEventListener("click", () =>
+    callback(!getVideoButtonCurrentStatus())
+  );
+}
+
+export function setMuteIndicatorVisible(peer_id: string, active: boolean) {
+  let image = document.querySelector(`#feed-${peer_id} img`);
+
+  if (active) {
+    image?.classList.add("invisible");
+  } else {
+    image?.classList.remove("invisible");
+  }
+}
+
+export function setNoVideoMsgVisible(peer_id: string, active: boolean) {
+  let text = document.querySelector(
+    `#feed-${peer_id} div[name='no-video-msg']`
+  );
+  console.log(text);
+
+  if (active) {
+    text?.classList.add("invisible");
+  } else {
+    text?.classList.remove("invisible");
+  }
+}
+
+export function getAudioButtonStatus(): boolean {
+  return audioButton.dataset.enabled === "true";
+}
+
+export function getVideoButtonCurrentStatus(): boolean {
+  return videoButton.dataset.enabled === "true";
+}
+
 export function setupControls(
   mediaStreams: MediaStreams,
   callbacks: SetupCallbacks
@@ -39,11 +86,11 @@ export function setupControls(
   const isVideoAvailable =
     (mediaStreams.videoStream?.getVideoTracks()?.length || 0) > 0;
 
-  audioButton.onclick = toggleAudio;
+  audioButton.addEventListener("click", toggleAudio);
   audioButton.disabled = !isAudioAvailable;
   audioButton.querySelector("img")!.src = iconFor("audio", isAudioAvailable);
 
-  videoButton.onclick = toggleVideo;
+  videoButton.addEventListener("click", toggleVideo);
   videoButton.disabled = !isVideoAvailable;
   videoButton.querySelector("img")!.src = iconFor("video", isVideoAvailable);
 

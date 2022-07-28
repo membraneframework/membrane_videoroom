@@ -12,7 +12,9 @@ import {
 } from "@membraneframework/membrane-webrtc-js";
 import { Push, Socket } from "phoenix";
 import {
+  addAudioStatusChangedCallback,
   addVideoElement,
+  addVideoStatusChangedCallback,
   attachScreensharing,
   attachStream,
   detachScreensharing,
@@ -21,6 +23,8 @@ import {
   setErrorMessage,
   setParticipantsList,
   setupControls,
+  setMuteIndicatorVisible,
+  setNoVideoMsgVisible,
   toggleScreensharing,
 } from "./room_ui";
 
@@ -34,6 +38,7 @@ export class Room {
   private wakeLock: WakeLockSentinel | null = null;
   private localVideoStream: MediaStream | null = null;
   private localVideoTrackId: string | null = null;
+  private localAudioTrackIds: string[] = [];
   private localScreensharing: MediaStream | null = null;
   private localScreensharingTrackId: string | null = null;
 
@@ -67,17 +72,20 @@ export class Room {
         },
         onConnectionError: setErrorMessage,
         onJoinSuccess: (_peerId, peersInRoom) => {
-          this.localAudioStream
-            ?.getTracks()
-            .forEach((track) =>
-              this.webrtc.addTrack(track, this.localAudioStream!, {})
+          this.localAudioStream?.getTracks().forEach((track) => {
+            const trackId = this.webrtc.addTrack(
+              track,
+              this.localAudioStream!,
+              { active: true }
             );
+            this.localAudioTrackIds.push(trackId);
+          });
 
           this.localVideoStream?.getTracks().forEach((track) => {
             this.localVideoTrackId = this.webrtc.addTrack(
               track,
               this.localVideoStream!,
-              {},
+              { active: true },
               { enabled: false }
             );
           });
@@ -105,7 +113,7 @@ export class Room {
           throw `Peer denied.`;
         },
         onTrackReady: (ctx) => {
-          if (ctx.metadata && ctx.metadata.type === "screensharing") {
+          if (ctx.metadata?.type === "screensharing") {
             attachScreensharing(
               ctx.peer.id,
               `(${ctx.peer.metadata.displayName}) Screen`,
@@ -118,6 +126,15 @@ export class Room {
             });
           }
           this.tracks.get(ctx.peer.id)?.push(ctx);
+
+          if (ctx.track?.kind === "audio") {
+            setMuteIndicatorVisible(ctx.peer.id, ctx.metadata.active);
+          } else if (
+            ctx.track?.kind === "video" &&
+            ctx.metadata?.type !== "screensharing"
+          ) {
+            setNoVideoMsgVisible(ctx.peer.id, ctx.metadata.active);
+          }
         },
         onTrackAdded: (_ctx) => {},
         onTrackRemoved: (ctx) => {
@@ -128,6 +145,16 @@ export class Room {
             .get(ctx.peer.id)
             ?.filter((track) => track.trackId !== ctx.trackId)!;
           this.tracks.set(ctx.peer.id, newPeerTracks);
+        },
+        onTrackUpdated: (ctx) => {
+          if (ctx.track?.kind == "audio") {
+            setMuteIndicatorVisible(ctx.peer.id, ctx.metadata.active);
+          } else if (
+            ctx.track?.kind == "video" &&
+            ctx.metadata.type !== "screensharing"
+          ) {
+            setNoVideoMsgVisible(ctx.peer.id, ctx.metadata.active);
+          }
         },
         onPeerJoined: (peer) => {
           this.peers.push(peer);
@@ -148,6 +175,9 @@ export class Room {
     this.webrtcChannel.on("mediaEvent", (event: any) =>
       this.webrtc.receiveMediaEvent(event.data)
     );
+
+    addAudioStatusChangedCallback(this.onAudioStatusChange.bind(this));
+    addVideoStatusChangedCallback(this.onVideoStatusChange.bind(this));
   }
 
   public init = async () => {
@@ -218,7 +248,7 @@ export class Room {
       this.localScreensharingTrackId = this.webrtc.addTrack(
         this.localScreensharing.getVideoTracks()[0],
         this.localScreensharing,
-        { type: "screensharing" }
+        { type: "screensharing", active: true }
       );
 
       // listen for screensharing stop via browser controls instead of ui buttons
@@ -281,6 +311,20 @@ export class Room {
     window.history.replaceState(null, "", window.location.pathname);
 
     return displayName as string;
+  };
+
+  private onAudioStatusChange = (status: boolean) => {
+    this.localAudioTrackIds.forEach((track) =>
+      this.webrtc.updateTrackMetadata(track, { active: status })
+    );
+    setMuteIndicatorVisible("local-peer", status);
+  };
+
+  private onVideoStatusChange = (status: boolean) => {
+    this.webrtc.updateTrackMetadata(this.localVideoTrackId!, {
+      active: status,
+    });
+    setNoVideoMsgVisible("local-peer", status);
   };
 
   private updateParticipantsList = (): void => {

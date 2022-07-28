@@ -8,7 +8,7 @@ defmodule Videoroom.Room do
   alias Membrane.RTC.Engine.MediaEvent
   alias Membrane.RTC.Engine.Endpoint.WebRTC
   alias Membrane.ICE.TURNManager
-  alias Membrane.WebRTC.Extension.{Mid, Rid, TWCC}
+  alias Membrane.WebRTC.Extension.{Mid, TWCC}
 
   require Membrane.Logger
   require Membrane.OpenTelemetry
