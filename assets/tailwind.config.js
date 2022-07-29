@@ -28,6 +28,32 @@ module.exports = {
       invert: {
         50: ".50",
       },
+      fontFamily: {
+        aktivGrotesk: [
+          'aktiv-grotesk',
+          'Roboto',
+          'sans-serif',
+          '"Inter"',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+        ],
+        rocGrotesk: [
+          'roc-grotesk',
+          'Roboto',
+          'sans-serif',
+          '"Inter"',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+        ],
+      },
+      colors: {
+        membraneDark: '#001A72',
+        membraneLight: '#87CCE8',
+      },
     },
   },
   variants: {

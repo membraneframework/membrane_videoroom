@@ -20,6 +20,12 @@
   }
 }
 
+@layer base {
+  html {
+    @apply font-aktivGrotesk;
+  }
+}
+
 .flip-horizontally {
   transform: scaleX(-1);
 }

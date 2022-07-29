@@ -1,4 +1,4 @@
-# Membrane WebRTC video room advanced demo
+# Membrane Videoroom WebRTC advanced demo
 
 This project demonstrates an advanced example usage of Membrane RTC Engine API defined in [membrane_rtc_engine](https://github.com/membraneframework/membrane_rtc_engine).
 
